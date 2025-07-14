@@ -27,14 +27,21 @@ interface EditOrderForm {
   products: ProductInOrder[];
 }
 
+interface CreateOrderForm {
+  idUser: string;
+  products: ProductInOrder[];
+}
+
 export default function OrderList() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [search, setSearch] = useState('');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
+  const [createForm] = Form.useForm();
 
   useEffect(() => {
     fetchOrders();
@@ -48,6 +55,40 @@ export default function OrderList() {
       console.error('Error fetching orders:', err);
       message.error('Error al cargar las órdenes');
     }
+  };
+
+  const handleCreate = () => {
+    setIsCreateModalOpen(true);
+    createForm.resetFields();
+    // Inicializar con un producto vacío
+    createForm.setFieldsValue({
+      idUser: '',
+      products: [{ productId: '', quantity: 1, price: 0 }]
+    });
+  };
+
+  const handleCreateSubmit = async (values: CreateOrderForm) => {
+    setLoading(true);
+    try {
+      const response = await axios.post('http://localhost:3002/api/auth/orders', values);
+      
+      // Agregar la nueva orden al estado local
+      setOrders(prevOrders => [...prevOrders, response.data.order]);
+      
+      message.success('Orden creada exitosamente');
+      setIsCreateModalOpen(false);
+      createForm.resetFields();
+    } catch (error) {
+      console.error('Error creating order:', error);
+      message.error('Error al crear la orden');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateCancel = () => {
+    setIsCreateModalOpen(false);
+    createForm.resetFields();
   };
 
   const handleEdit = (order: Order) => {
@@ -213,12 +254,21 @@ export default function OrderList() {
 
   return (
     <div className="p-4">
-      <Search
-        className="mb-4 w-60"
-        placeholder="Buscar por ID de usuario..."
-        onChange={(e) => setSearch(e.target.value)}
-        allowClear
-      />
+      <div className="mb-4 flex gap-4 items-center">
+        <Search
+          className="w-60"
+          placeholder="Buscar por ID de usuario..."
+          onChange={(e) => setSearch(e.target.value)}
+          allowClear
+        />
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={handleCreate}
+        >
+          Crear Orden
+        </Button>
+      </div>
       
       <Table
         columns={columns}
@@ -226,6 +276,97 @@ export default function OrderList() {
         rowKey="_id"
         pagination={{ pageSize: 5 }}
       />
+
+      {/* Modal de Creación */}
+      <Modal
+        title="Crear Nueva Orden"
+        open={isCreateModalOpen}
+        onOk={createForm.submit}
+        onCancel={handleCreateCancel}
+        confirmLoading={loading}
+        okText="Crear"
+        cancelText="Cancelar"
+        width={800}
+      >
+        <Form
+          form={createForm}
+          layout="vertical"
+          onFinish={handleCreateSubmit}
+        >
+          <Form.Item
+            label="ID Usuario"
+            name="idUser"
+            rules={[{ required: true, message: 'Por favor ingresa el ID del usuario' }]}
+          >
+            <Input placeholder="ID del usuario" />
+          </Form.Item>
+
+          <Form.Item label="Productos">
+            <Form.List name="products">
+              {(fields, { add, remove }) => (
+                <>
+                  {fields.map(({ key, name, ...restField }) => (
+                    <Space
+                      key={key}
+                      style={{ display: 'flex', marginBottom: 8 }}
+                      align="baseline"
+                    >
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'productId']}
+                        rules={[{ required: true, message: 'ID del producto requerido' }]}
+                      >
+                        <Input placeholder="ID del producto" style={{ width: 200 }} />
+                      </Form.Item>
+                      
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'quantity']}
+                        rules={[{ required: true, message: 'Cantidad requerida' }]}
+                      >
+                        <InputNumber<number>
+                          placeholder="Cantidad" 
+                          min={1} 
+                          style={{ width: 100 }}
+                        />
+                      </Form.Item>
+                      
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'price']}
+                        rules={[{ required: true, message: 'Precio requerido' }]}
+                      >
+                        <InputNumber<number> 
+                          placeholder="Precio" 
+                          min={0} 
+                          step={0.01}
+                          style={{ width: 100 }}
+                          formatter={(value) => value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
+                          parser={(value) => parseFloat(value?.replace(/\$\s?|(,*)/g, '') || '0') || 0}
+                        />
+                      </Form.Item>
+                      
+                      <MinusCircleOutlined onClick={() => remove(name)} />
+                    </Space>
+                  ))}
+                  
+                  <Form.Item>
+                    <Button
+                      type="dashed"
+                      onClick={() => add()}
+                      block
+                      icon={<PlusOutlined />}
+                    >
+                      Agregar Producto
+                    </Button>
+                  </Form.Item>
+                </>
+              )}
+            </Form.List>
+          </Form.Item>
+
+        </Form>
+      </Modal>
 
       {/* Modal de Edición */}
       <Modal
