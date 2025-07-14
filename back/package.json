@@ -1,0 +1,15 @@
+{
+  "name": "api-web-microservices",
+  "version": "1.0.0",
+  "description": "Microservices API",
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix order\" \"npm run dev --prefix product\" \"npm run dev --prefix rol\" \"npm run dev --prefix user\"",
+    "dev:order": "npm run dev --prefix order",
+    "dev:product": "npm run dev --prefix product",
+    "dev:rol": "npm run dev --prefix rol",
+    "dev:user": "npm run dev --prefix user"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
